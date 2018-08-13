@@ -3,7 +3,20 @@
   white-space: nowrap;
 }
 
-.mainContainer .wrapper a, .inner .projectIntro a {
+.onPageNav {
+  background-color: white;
+}
+
+.mainContainer {
+  background-color: white;
+}
+
+.navPusher {
+  background-color: white;
+}
+
+.mainContainer .wrapper a,
+.inner .projectIntro a {
   text-decoration: underline;
 }
 
@@ -16,6 +29,48 @@
   left: 3rem;
   margin-top: 2rem;
   max-height: 200px !important;
+}
+
+.docMainWrapper {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.docsNavContainer {
+  background-color: #effaff;
+}
+
+.doc.separateOnPageNav .docsNavContainer {
+  padding-top: 50px;
+  margin-top: 0px;
+  padding-left: 25px;
+}
+
+.navigationSlider .slidingNav ul li.siteNavGroupActive a {
+  color: black;
+  background-color: white;
+}
+
+.navigationSlider .slidingNav ul li a {
+  background-color: white;
+  color: black;
+}
+
+.fixedHeaderContainer {
+  background-color: white;
+  -webkit-box-shadow: 0px 3px 66px -16px rgba(0, 0, 0, 0.3);
+  -moz-box-shadow: 0px 3px 66px -16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 3px 66px -16px rgba(0, 0, 0, 0.3);
+}
+
+.fixedHeaderContainer header h2 {
+  color: black;
+}
+
+blockquote {
+  border-left: 5px solid #ffe563;
+  background-color: #fff7d2;
 }
 
 @media only screen and (min-device-width: 360px) and (max-device-width: 736px) {
