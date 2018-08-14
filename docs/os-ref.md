@@ -3,25 +3,26 @@ id: aragonos-ref
 title: aragonOS
 ---
 
-aragonOS A framework that enables flexible and upgradeable governance mechanisms by creating and assigning permissions to multiple entities. This doc assumes you have some knowledge about solidity, if not checkout Solidity (https://solidity.readthedocs.io/) before you jump into AragonOS.
+aragonOS A framework that enables flexible and upgradeable governance mechanisms by creating and assigning permissions to multiple entities. This doc assumes you have some knowledge about solidity, if not checkout [Solidity](https://solidity.readthedocs.io/) before you jump into AragonOS.
 
 - [Kernel](#test)
-- [Apps](#test)
 - [ACL](#test)
-- [Forwarder](#test)
 - [Proxy](#test)
+- [Forwarder](#test)
 
 ## Kernel
 
-The kernel is what keeps tracks of which apps the DAO has installed. Once you have a DAO you’ll want to add apps that help make your DAO effective. The kernel is at the core of every organization, there is only one instance per organization. It manages the mapping of base contract addresses depending on the application and registered apps in the kernel (such as the ACL) or the kernel’s own base contract.
+The kernel is at the core of every organization there is only one instance per organization. Once you have a DAO you’ll want to add apps that help make your DAO effective. Keeping track of which apps that have been installed is done by using app mapping onto the namespace of the kernel. If we want to upgrade any of these apps we will do so by using proxies.
 
 > Tip
 >
-> Apps: are contracts that rely on use the kernel for their upgradeability and access control. Apps don’t need to implement any of those as they occur directly in the Kernel or ACL.
+> Apps are contracts that rely on use the kernel for their upgradeability and access control. Apps don’t need to implement any of those as they occur directly in the Kernel or ACL.
 
-Modifying this mapping can have completely destructive consequences and can result in loss of funds.
+<!-- DelegateProxies - a contract which delegates its logic to another contract -->
 
-DelegateProxies - a contract which delegates its logic to another contract
+**Apps**
+
+Aragon DAOs come with come with some basic apps pre-installed and users can add other apps. Apps can be manually add via setApp() or through the UI. Its important to keep in mind that apps run in different namespaces.
 
 To add an app to the DAO run:
 
@@ -33,27 +34,29 @@ function setApp(bytes32 namespace, bytes appId, address app) public
 - **AppId**: used to identify what app is being set. It is the ENS namehash of the APM repo (e.g. namehash(‘voting.aragonpm.eth’)).
 - **App**: Address of a contract that can have different meaning depending on the namespace.
 
+> Warning
+>
+> Modifying the kernel mapping can have completely destructive consequences and can result in loss of funds.
+
 **Namespaces**
 
-What are namespaces? Namespaces are the three layers of contracts your DAO is made up of.
+What are namespaces? Namespaces are the three layers your DAO is made up of.
 
 - **Core** (keccak256('core')): in this namespace is where the core components of the kernel reside. The only thing in the core mapping is the reference to the kernel base contract.
 - **Base** namespace (keccak256('base')): keeps track of the base contracts for appIds.
 - **App** namespace (keccak256('app')): some apps use the app namespace as a way to reference other apps. For example this is used to store the reference to the ACL instance or the EVMScriptsRegistry.
 
-Every kernel instance is a kernel proxy.
+<!-- Every kernel instance is a kernel proxy. -->
 
-AppProxies rely their upgradability to the kernel.
+<!-- AppProxies rely their upgradability to the kernel. -->
 
 ```javascript
 kernel.setup(kernel.APP_BASES_NAMESPACE(), votingAppId, newVotingAppCodeAddr);
 ```
 
-There are two different types of proxies:
+**Upgradeability**
 
-**upgradeableAppProxy**: in every call to the proxy, it checks with the Kernel what the current code for that appId is and forwards the call. Not sure what this is doing - ?
-
-**PinnedAppProxy**: on contract creation it checks and saves the app code currently in the Kernel. This cannot be upgraded unless the app code has explicit logic to change that storage slot.
+What happens when a new version of an app that in your DAO uses is released? How do you upgrade it? Who gets to upgrade it? These are important questions. Aragon solves these issues using ACL and Proxies. The ACL (Access Control Lis) is what keeps track of who can do what and under what conditions. Proxies are a way of seperating the app logic and the app state into proxy contracts that can be swapped out without impacting the other, this solves upgrading. These topics are covered later in the section.
 
 **App sandbox**
 
@@ -254,59 +257,9 @@ ChangePermissionManager(address indexed app, bytes32 indexed role, address index
 
 **Example**
 
-In this example we are going to have our simple valut app expose the ability to transfer funds from one account to another.
+In this example we are going to have our give permission for a user to install a simple valut app and expose the ability to transfer funds to a users account.
 
-Vault App
-
-```js
-pragma solidity 0.4.18;
-import "@aragon/os/contracts/apps/AragonApp.sol";
-import "@aragon/os/contracts/lib/zeppelin/token/ERC20.sol";
-import "@aragon/os/contracts/lib/misc/Migrations.sol";
-
-contract Vault is AragonApp {
-    bytes32 constant public TRANSFER_ROLE = keccak256("TRANSFER_ROLE");
-
-    /**
-    * @notice Transfer `value` `token` from the Vault to `to`
-    * @param token Address of the token being transferred
-    * @param to Address of the recipient of tokens
-    * @param value Amount of tokens being transferred
-    */
-    function transfer(address token, address to, uint256 value)
-        authP(TRANSFER_ROLE, arr(address(token), to, value))
-        external
-    {
-        transfer(token, to, value, new bytes(0));
-    }
-
-
-    function deposit(address token, address from, uint256 value) payable public {
-        require(value > 0);
-        require(msg.sender == from);
-        if (token == ETH) {
-            // Deposit is implicit in this case
-            require(msg.value == value);
-        } else {
-            require(ERC20(token).transferFrom(from, this, value));
-        }
-    }
-
-    function balance(address token) public view returns (uint256) {
-        if (token == ETH) {
-            return address(this).balance;
-        } else {
-            return ERC20(token).balanceOf(this);
-        }
-    }
-}
-```
-
-The transfer function needs to be exposed for the ACL contract to interact with it so we use the authP() parameter to….
-
-Now that transfer is exposed lets use it
-
-Here is our Vault app
+Vault contract
 
 ```js
 pragma solidity 0.4.18;
@@ -352,9 +305,15 @@ contract Vault is AragonApp {
 }
 ```
 
-The transfer function needs to be exposed for the ACL contract to interact with it so we use the authP() parameter to….
+The transfer function needs to be exposed for the ACL contract to interact with it so we use the authP() parameter to tell it which parameters need to be passed to the ACL.
 
-Now that transfer is exposed lets use it
+```js
+authP(TRANSFER_ROLE, arr(address(token), to, value));
+```
+
+First we pass in the role this function will be assigned to, TRANSFER_ROLE. Using the arr() parameter we pass in the next set of parameters that are going to be sent to the ACL to determine is this action can go through. Lets say we deploy this contract and its address is 0x111.
+
+Now that transfer() is exposed lets use it!
 
 Here is our Vault.js code
 
@@ -402,7 +361,7 @@ const test = async () => {
 
 ## Proxy
 
-Upgrading an app or the kernel is done by setting a new address for a key in the kernel.
+Upgrading the kernel or an app is done by setting a new address for a key in the kernel using proxies.
 
 **Kernel Upgrade**
 
@@ -426,13 +385,11 @@ Upgrading an app is done by setting a new app address for the appId and using Ba
 kernel.setApp(kernel.APP_BASES_NAMESPACE(), votingAppId, newVotingAppCodeAddr);
 ```
 
-There are two type of app proxies
+There are two different types of proxies:
 
-UpgradeableAppProxy: in every call to the proxy, it checks with the Kernel what the current code for that appId is and forwards the call.
+**upgradeableAppProxy**: in every call to the proxy, it checks with the Kernel what the current code for that appId is and forwards the call. Not sure what this is doing - ?
 
-PinnedAppProxy: on contract creation it checks and saves the app code currently in the Kernel. This cannot be upgraded unless the app code has explicit logic to change that storage slot.
-
-There is an extra function in the Kernel that allows for setting the app code and at the same time creating a new proxy. This function only sets the code the first time.
+**PinnedAppProxy**: on contract creation it checks and saves the app code currently in the Kernel. This cannot be upgraded unless the app code has explicit logic to change that storage slot.
 
 ```js
 kernel.newAppInstance(votingAppId, votingApp);
@@ -467,34 +424,43 @@ interface IEVMScriptExecutor {
 
 Because script executors get are called with a delegatecall, in order to prevent self-destructs, IEVMScriptExecutor.execScript(...) MUST return at least 32 bytes so in case an executor selfdestructs it could be detected.
 
-CallsScript
+CallsScript() -
 A simple way to concatenate multiple calls. It cancels the operation if any of the calls fail.
 
 Script body: (See source code file for spec of the payload)
+
 Input: None
-Output: None.
+
+Output: None
+
 Blacklist: Entire script reverts if a call to one of the addresses in the blacklist is performed.
 
-DelegateScript
-delegatecalls into a given contract, which basically allows for any arbitrary computation within the EVM in the caller’s context.
+DelegateScript() - delegatecalls into a given contract, which basically allows for any arbitrary computation within the EVM in the caller’s context.
 
 Script body: Address of the contract to make the call to.
+
 Input: calldata for the delegatecall that will be performed.
+
 Output: raw return data of the call.
+
 Blacklist: impossible to enforce. If there are any addresses in the blacklist the script will revert as it is not possible to check whether a particular address will be called.
 
-DeployDelegateScript
-Is a superset of the DelegateScript, but it takes a contract’s initcode bytecode as its script body instead of just an address. On execution, it deploys the contract to the blockchain and executes it with a delegatecall.
+DeployDelegateScript() - Is a superset of the DelegateScript, but it takes a contract’s initcode bytecode as its script body instead of just an address. On execution, it deploys the contract to the blockchain and executes it with a delegatecall.
 
 Script body:: initcode for contract being created.
+
 Input: calldata for the delegatecall that will be performed after contract creation.
+
 Output: raw return data of the call.
+
 Blacklist: impossible to enforce. If there are any addresses in the blacklist the script will revert as it is not possible to check whether a particular address will be called.
 
-Making an app a Forwarder
+**Making an app a Forwarder**
+
 Examples of forwarders can be found in the aragon-apps repo, both the Voting and the Token Manager are forwarders.
 
-Warnings
+**Warnings**
+
 EVMScripts can be too powerful. Providing forwarding functionality to an app
 
 Some things to have in mind when developing an app
