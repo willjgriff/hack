@@ -40,11 +40,11 @@ const siteConfig = {
 
   headerLinks: [
     { doc: "getting-started", label: "Get started" },
-    { doc: "tutorial", label: "Tutorial" },
     { doc: "aragonos-ref", label: "aragonOS" },
-    { doc: "kernel_Kernel", label: "API" },
     { doc: "aragonjs-ref", label: "aragon.js" },
     { doc: "aragonui-intro", label: "Aragon UI" },
+    { doc: "kernel_Kernel", label: "API" },
+    { doc: "tutorial", label: "Tutorial" },
     { href: "https://github.com/aragon/hack", label: "GitHub" }
   ],
 
